@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2021-03-30 16:13:34
- * @LastEditTime: 2021-03-30 16:15:04
+ * @LastEditTime: 2021-03-30 17:35:05
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/README.md
@@ -40,17 +40,37 @@ struct Value{
 }
 ```
 
-解析函数
+#### 解析类 Parser 
+
+最基本的方法是 `int parse(Value* v, const char* json);` 返回值 `ParseState`
+
+```c++
+typedef enum {PARSE_OK, PARSE_EXPECT_VALUE, PARSE_INVALID_VALUE, PARSE_ROOT_NOT_SINGULAR} ParseState; 
+
+int parse(Value* v, const char* json);
+
+//获取节点的类型
+ValueType getType(Value* v);
+```
+
+关于[状态码](./doc/状态码.md)的含义详细
 
 
+传入解析函数的应该是 const char* 为了避免修改输入字符串 `parse`
+
+**更多的设计思路查看各个分目录文档**
+
+* [Parser设计思路](./doc/Parser.md)
 
 
+## 使用test.c做一些单元测试
 
 ## 命名风格统一
 
-1. 类和结构首字母大写
-2. 驼峰式命名规则
+1. 类和结构首字母大写，使用驼峰式命名规则
+2. 使用小写加下划线命名函数；宏定义用全大写
 3. 变量首字母小写
 4. 类私有成员使用前下划线表示
 5. 全局变量用g开头
+6. 成员函数使用小写开头，
 
