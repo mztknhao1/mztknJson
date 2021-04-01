@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 18:57:45
- * @LastEditTime: 2021-04-01 09:34:11
+ * @LastEditTime: 2021-04-01 10:04:35
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/test.c
@@ -73,8 +73,35 @@ using namespace mztknJson;
             EXPECT_EQ_STRING(expect, v.get_string(), v.get_string_length());\
         }while(0);
 
+#define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual)!=0, "true", "false", "%s")
+#define EXPECT_FALSE(actual) EXPECT_EQ_BASE((actual)==0, "false", "true", "%s")
+
 static void test_parse_null(){
     TEST_NULL(PARSE_OK, "null");
+}
+
+static void test_access_boolean(){
+    Parser p;
+    Value v;
+    v.set_type(JSON_FALSE);
+    p.parse(&v, "true");
+    EXPECT_TRUE(v.get_boolean());
+
+    v.set_boolean(0);
+    EXPECT_FALSE(v.get_boolean());
+    
+    Value v1;
+    v1.set_type(JSON_TRUE);
+    p.parse(&v, "false");
+    EXPECT_FALSE(v.get_boolean());
+}
+
+static void test_access_number(){
+    Parser p;
+    Value v;
+    v.set_string("a", 1);
+    v.set_number(1234.5);
+    EXPECT_EQ_DOUBLE(1234.5, v.get_number());
 }
 
 static void test_parse_true(){
@@ -164,6 +191,25 @@ static void test_parse_invalid_value() {
     TEST_ERROR(PARSE_INVALID_VALUE, "nan");
 }
 
+
+
+static void test_parse_invalid_string_char(){
+    TEST_ERROR(PARSE_INVALID_STRING_CHAR, "\"\x01\"");
+    TEST_ERROR(PARSE_INVALID_STRING_CHAR, "\"\x1F\"");
+}
+
+static void test_parse_invalid_string_escape() {
+    TEST_ERROR(PARSE_INVALID_STRING_ESCAPE, "\"\\v\"");
+    TEST_ERROR(PARSE_INVALID_STRING_ESCAPE, "\"\\'\"");
+    TEST_ERROR(PARSE_INVALID_STRING_ESCAPE, "\"\\0\"");
+    TEST_ERROR(PARSE_INVALID_STRING_ESCAPE, "\"\\x12\"");
+}
+
+static void test_parse_missing_quotation_mark() {
+    TEST_ERROR(PARSE_MISS_QUOTATION_MARK, "\"");
+    TEST_ERROR(PARSE_MISS_QUOTATION_MARK, "\"abc");
+}
+
 static void test_parse(){
     test_parse_null();
     test_parse_true();
@@ -174,6 +220,12 @@ static void test_parse(){
     test_parse_invalid_value();
     test_parse_root_not_singular();
     test_parse_string();
+
+    test_access_number();
+    test_access_boolean();
+    test_parse_invalid_string_char();
+    test_parse_missing_quotation_mark();
+    test_parse_invalid_string_escape();
 }
 
 int main(){

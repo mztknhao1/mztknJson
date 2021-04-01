@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:47:25
- * @LastEditTime: 2021-04-01 09:19:14
+ * @LastEditTime: 2021-04-01 09:56:17
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.cpp
@@ -136,10 +136,28 @@ int Parser::parse_string(Context& c, Value* v){
                 v->set_string((const char*)c.Pop(len), len);
                 c._json = p;
                 return PARSE_OK;
+            case '\\':
+                switch(*p++){
+                    case '\"': c.put_char('\"'); break;
+                    case '\\': c.put_char('\\'); break;
+                    case '/' : c.put_char('/');  break;
+                    case 'b' : c.put_char('\b'); break;
+                    case 'f' : c.put_char('\f'); break;
+                    case 'n' : c.put_char('\n'); break;
+                    case 'r' : c.put_char('\r'); break;
+                    case 't' : c.put_char('\t'); break;
+                    default:
+                        c._top = head;
+                        return PARSE_INVALID_STRING_ESCAPE;
+                }
             case '\0':
                 c._top = head;
                 return PARSE_MISS_QUOTATION_MARK;
             default:
+                if((unsigned char)ch < 0x20){
+                    c._top = head;
+                    return PARSE_INVALID_STRING_CHAR;
+                }
                 c.put_char(ch);
         }
     }

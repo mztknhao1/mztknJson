@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:19:33
- * @LastEditTime: 2021-04-01 09:33:25
+ * @LastEditTime: 2021-04-01 10:09:09
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.hpp
@@ -33,6 +33,9 @@ public:
         struct {char* s; size_t len;} _s;
     };
     Value(){_type = JSON_NULL;}
+    ~Value(){
+        Free();
+    }
     void set_null(){
         _type = JSON_NULL;
     }
@@ -47,7 +50,7 @@ public:
             free(_s.s);
         _type = JSON_NULL;
     }
-    int     get_boolean(){
+    int get_boolean(){
         assert(_type == JSON_TRUE || _type==JSON_FALSE);
         if(_type == JSON_TRUE){
             return 1;
@@ -56,19 +59,21 @@ public:
         }
         return 0;
     }
-    void     set_boolean(int b){
-        assert(_type == JSON_TRUE || _type == JSON_FALSE);
+    void set_boolean(int b){
+        Free();
         _type = b?JSON_TRUE:JSON_FALSE;
     }
-    double   get_number(){
+    double get_number(){
         assert(_type == JSON_NUMBER);
         return _n;
     }
-    void  set_number(double n){
-        assert(_type == JSON_NUMBER);
+    void set_number(double n){
+        Free();
         _n = n;
+        _type = JSON_NUMBER;
     }
-    const char*         get_string(){
+    
+    const char* get_string(){
         assert(_type == JSON_STRING);
         return _s.s;
     }
@@ -76,7 +81,7 @@ public:
         assert(_type == JSON_STRING);
         return _s.len;
     }
-    void  set_string(const char* s, size_t len){
+    void set_string(const char* s, size_t len){
         assert(s!=NULL || len==0);
         Free();
         _s.s = (char*)malloc(len+1);
