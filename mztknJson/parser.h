@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:19:33
- * @LastEditTime: 2021-03-31 10:03:24
+ * @LastEditTime: 2021-04-01 09:33:25
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.hpp
@@ -20,18 +20,83 @@ typedef enum {
     PARSE_EXPECT_VALUE,
     PARSE_INVALID_VALUE,
     PARSE_ROOT_NOT_SINGULAR,
-    PARSE_NUMBER_TOO_BIG
+    PARSE_NUMBER_TOO_BIG,
+    PARSE_MISS_QUOTATION_MARK,
+    PARSE_INVALID_STRING_ESCAPE,
+    PARSE_INVALID_STRING_CHAR
 } ParseState;
 
-struct Value{
-    double    _n;
+class Value{
+public:
+    union{
+        double    _n;
+        struct {char* s; size_t len;} _s;
+    };
+    Value(){_type = JSON_NULL;}
+    void set_null(){
+        _type = JSON_NULL;
+    }
+    ValueType get_type() const {
+        return _type;
+    }
+    ValueType set_type(ValueType vt){
+        _type = vt;
+    }
+    void Free(){
+        if(_type == JSON_STRING)
+            free(_s.s);
+        _type = JSON_NULL;
+    }
+    int     get_boolean(){
+        assert(_type == JSON_TRUE || _type==JSON_FALSE);
+        if(_type == JSON_TRUE){
+            return 1;
+        }else if(_type == JSON_FALSE){
+            return 0;
+        }
+        return 0;
+    }
+    void     set_boolean(int b){
+        assert(_type == JSON_TRUE || _type == JSON_FALSE);
+        _type = b?JSON_TRUE:JSON_FALSE;
+    }
+    double   get_number(){
+        assert(_type == JSON_NUMBER);
+        return _n;
+    }
+    void  set_number(double n){
+        assert(_type == JSON_NUMBER);
+        _n = n;
+    }
+    const char*         get_string(){
+        assert(_type == JSON_STRING);
+        return _s.s;
+    }
+    size_t              get_string_length(){
+        assert(_type == JSON_STRING);
+        return _s.len;
+    }
+    void  set_string(const char* s, size_t len){
+        assert(s!=NULL || len==0);
+        Free();
+        _s.s = (char*)malloc(len+1);
+        memcpy(_s.s, s, len);
+        _s.s[len] = '\0';
+        _s.len = len;
+        _type = JSON_STRING;
+    }
+
+private:
     ValueType _type;
+
+
 };
 
 
 class Parser{
 public:
     int parse(Value* v, const char* json);
+
 
     ValueType get_type(const Value* v);
 
@@ -41,18 +106,53 @@ public:
 private:
     struct Context{
         const char *_json;
+        char* _stack;                    //预留的临时栈
+        size_t _size, _top;
         explicit Context(const char *json){
             assert(json!=NULL);
             _json = json;
+            _size = _top = 0;
+            _stack = NULL;
         }
+        ~Context(){
+            assert(_top == 0);
+            free(_stack);
+        }
+        void *Push(size_t sz){
+            void* ret;
+            assert(sz > 0);
+            if(_top + sz >= _size){
+                if(_size == 0){
+                    _size = PARSE_STACK_INIT_SIZE;
+                }
+                while(_top + sz >= _size)
+                    _size += _size >> 1;        // _size * 1.5
+                _stack = (char*)realloc(_stack, _size);
+            }
+            ret = _stack + _top;
+            _top += sz;
+            return ret;
+        }
+        void put_char(char ch){
+            *(char*)Push(sizeof(char)) = ch;
+        }
+
+        void *Pop(size_t sz){
+            assert(_top >= sz);
+            return _stack + (_top -= sz);
+        }
+
     };
 
     void parse_whitespace(Context& c);
 
     int  parse_value(Context& c, Value* v);
     int  parse_number(Context& c, Value* v);
+    int  parse_string(Context& c, Value* v);
     int  parse_literal(Context& c, Value* v, const char* literal, ValueType type);
 
+
+    
 };
 
 

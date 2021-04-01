@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:39:50
- * @LastEditTime: 2021-03-30 17:05:24
+ * @LastEditTime: 2021-04-01 08:58:53
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/mztknJson.h
@@ -16,9 +16,13 @@
 #define MZTKNJSON_NAMESPACE_END }
 
 
-#include <cstdlib>
+#include <stdlib.h>
 #include <cassert>
+#include <cstring>
 
+#ifndef PARSE_STACK_INIT_SIZE
+#define PARSE_STACK_INIT_SIZE 256
+#endif
 
 
 #endif

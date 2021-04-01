@@ -1,13 +1,14 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:47:25
- * @LastEditTime: 2021-03-31 10:03:16
+ * @LastEditTime: 2021-04-01 09:19:14
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.cpp
  */
 #include <errno.h>
 #include <math.h>
+#include <malloc.h>
 #include "parser.h"
 
 MZTKNJSON_NAMESPACE_BEGIN
@@ -18,7 +19,7 @@ MZTKNJSON_NAMESPACE_BEGIN
 
 int Parser::parse(Value* v, const char* json){
     assert(v != NULL);
-    v->_type = JSON_NULL;
+    v->set_null();
     Context c(json);
     int ret;
     
@@ -28,7 +29,7 @@ int Parser::parse(Value* v, const char* json){
     if((ret = parse_value(c, v)) == PARSE_OK){
         parse_whitespace(c);
         if(*c._json != '\0'){
-            v->_type = JSON_NULL;
+            v->set_null();
             ret = PARSE_ROOT_NOT_SINGULAR;
         }
     }
@@ -57,6 +58,9 @@ int Parser::parse_value(Context& c, Value* v){
             break;
         case '\0':
             return PARSE_EXPECT_VALUE;
+            break;
+        case '"':
+            return parse_string(c, v);
             break;
         default:
             return parse_number(c, v);
@@ -88,7 +92,7 @@ int Parser::parse_number(Context& c, Value* v){
         return PARSE_NUMBER_TOO_BIG;
     }
     c._json = p;
-    v->_type = JSON_NUMBER;
+    v->set_type(JSON_NUMBER);
     return PARSE_OK;
 }
 
@@ -96,11 +100,11 @@ int Parser::parse_number(Context& c, Value* v){
 
 ValueType Parser::get_type(const Value* v){
     assert(v!=NULL);
-    return v->_type;
+    return v->get_type();
 }
 
 double Parser::get_number(const Value* v){
-    assert(v!=NULL && v->_type == JSON_NUMBER);
+    assert(v!=NULL && v->get_type() == JSON_NUMBER);
     return v->_n;
 }
 
@@ -114,10 +118,32 @@ int  Parser::parse_literal(Context& c, Value* v, const char* literal, ValueType 
         }
     }
     c._json += i;
-    v->_type = type;
+    v->set_type(type);
     return PARSE_OK;
 }
 
+int Parser::parse_string(Context& c, Value* v){
+    assert(v!=NULL);
+    size_t head = c._top, len;
+    const char* p;
+    EXPECT(c, '\"');
+    p = c._json;
+    for(;;){
+        char ch = *p++;
+        switch(ch){
+            case '\"':
+                len = c._top - head;
+                v->set_string((const char*)c.Pop(len), len);
+                c._json = p;
+                return PARSE_OK;
+            case '\0':
+                c._top = head;
+                return PARSE_MISS_QUOTATION_MARK;
+            default:
+                c.put_char(ch);
+        }
+    }
+}
 
 
 MZTKNJSON_NAMESPACE_END

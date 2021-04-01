@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 18:57:45
- * @LastEditTime: 2021-03-31 09:54:45
+ * @LastEditTime: 2021-04-01 09:34:11
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/test.c
@@ -35,7 +35,7 @@ using namespace mztknJson;
         do{\
             Parser p; \
             Value  v; \
-            v._type = JSON_FALSE; \
+            v.set_type(JSON_FALSE); \
             EXPECT_EQ_INT(PARSE_OK, p.parse(&v, json)); \
             EXPECT_EQ_INT(JSON_NULL, p.get_type(&v)); \
         }while(0)
@@ -45,7 +45,7 @@ using namespace mztknJson;
         do{\
             Parser p;  \
             Value  v;  \
-            v._type = JSON_FALSE; \
+            v.set_type(JSON_FALSE);\
             EXPECT_EQ_INT(PARSE_OK, p.parse(&v, json)); \
             EXPECT_EQ_INT(JSON_NUMBER, p.get_type(&v)); \
             EXPECT_EQ_DOUBLE(expect, p.get_number(&v)); \
@@ -55,11 +55,23 @@ using namespace mztknJson;
         do{ \
             Parser p;\
             Value  v;\
-            v._type = JSON_FALSE;\
+            v.set_type(JSON_FALSE);\
             EXPECT_EQ_INT(error, p.parse(&v, json));\
             EXPECT_EQ_INT(JSON_NULL, p.get_type(&v));\
         }while(0)
 
+#define EXPECT_EQ_STRING(expect, actual, alength) \
+    EXPECT_EQ_BASE(sizeof(expect) - 1 == alength && memcmp(expect, actual, alength)==0, expect, actual, "%s")
+
+#define TEST_STRING(expect, json) \
+        do{\
+            Parser p; \
+            Value  v; \
+            v.set_type(JSON_FALSE);\
+            EXPECT_EQ_INT(PARSE_OK, p.parse(&v, json));\
+            EXPECT_EQ_INT(JSON_STRING, p.get_type(&v)); \
+            EXPECT_EQ_STRING(expect, v.get_string(), v.get_string_length());\
+        }while(0);
 
 static void test_parse_null(){
     TEST_NULL(PARSE_OK, "null");
@@ -68,7 +80,7 @@ static void test_parse_null(){
 static void test_parse_true(){
     Parser p;
     Value v;
-    v._type = JSON_FALSE;
+    v.set_type(JSON_FALSE);
     EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "true"));
     EXPECT_EQ_INT(JSON_TRUE, p.get_type(&v));
 }
@@ -76,7 +88,7 @@ static void test_parse_true(){
 static void test_parse_false(){
     Parser p;
     Value v;
-    v._type = JSON_FALSE;
+    v.set_type(JSON_FALSE);
     EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "false"));
     EXPECT_EQ_INT(JSON_FALSE, p.get_type(&v));
 }
@@ -132,6 +144,11 @@ static void test_parse_number_too_big() {
     TEST_ERROR(PARSE_NUMBER_TOO_BIG, "-1e309");
 }
 
+static void test_parse_string(){
+    // TEST_STRING("", "\"\"");
+    TEST_STRING("Hello", "\"Hello\"");
+}
+
 static void test_parse_invalid_value() {
     TEST_ERROR(PARSE_INVALID_VALUE, "nul");
     TEST_ERROR(PARSE_INVALID_VALUE, "?");
@@ -156,6 +173,7 @@ static void test_parse(){
     test_parse_expect_value();
     test_parse_invalid_value();
     test_parse_root_not_singular();
+    test_parse_string();
 }
 
 int main(){
