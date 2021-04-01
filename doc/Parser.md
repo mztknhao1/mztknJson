@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2021-03-30 17:34:46
- * @LastEditTime: 2021-03-31 16:12:55
+ * @LastEditTime: 2021-04-01 11:06:09
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/doc/Parser.md
@@ -182,3 +182,52 @@ static int parse_string(Context& c, Value* v){
     }
 }
 ```
+
+#### 一些特殊情况的处理
+
+对于不合法的字符 使用： `if((unsigned char)ch < 0x20){return PARSE_INVALID_STRING_CHAR}` 
+
+#### Unicode 处理
+
+Unicode9.0 已经收录135种语言共128237个字符。UTF-8是8位字节。每种UTF会把一个码点存储位一个至多个编码单元(code unit)。UTF-8 采用字节编码单元，不会有字节序的问题。每个ASCII字符只需要一个字节存储。如果程序原来已字节方式存储字符，理论上不需要特别的改动就能自动处理UTF-8的数据。
+
+由于UTF-8的普及性，mztknJSON支持UTF-8。
+
+* JSON字符串中\uXXXX是以16进制表示码点U+0000 至 0+FFFF，我们需要：
+    * 解析4位16进制整数为码点
+    * 由于字符串以UTF-8存储，我们需要把这个码点编码成UTF-8
+4位16进制数字只能表示 0 至 0xFFFF，但是UCS的码点从0至0X10FFFF，怎么表示多出来的码点？JSON会使用一对**(surrogate pair, H, L)**来表示：`\uXXXX\uYYYY`，在BNP种，保留了2048个码点，如果第一个码点是`U+D800 至 U+DBFF`，我们便直到代码对pair的高代理项(high surrogate)，之后应该伴随着一个U+DC00至U+DFFF的低代理项，然后使用下面的公式转换成真实码点：
+`codepoint = 0x10000 + (H - 0xD800) x 0x400 + (L - 0xDC00`
+
+
+(H, L)如果只有高代理项或者低代理项不在合法范围内，返回 PARSE_INVALID_UNICODE_SURROGATE错误，如果\u后面不是4位十六进制数字，则返回PARSE_INVALID_UNICODE_HEX错误。
+
+UTF-8编码，把每个码点编码成1至4个字节，如下表所示：
+| 码点范围            | 码点位数  | 字节1     | 字节2    | 字节3    | 字节4     |
+|:------------------:|:--------:|:--------:|:--------:|:--------:|:--------:|
+| U+0000 ~ U+007F    | 7        | 0xxxxxxx |
+| U+0080 ~ U+07FF    | 11       | 110xxxxx | 10xxxxxx |
+| U+0800 ~ U+FFFF    | 16       | 1110xxxx | 10xxxxxx | 10xxxxxx |
+| U+10000 ~ U+10FFFF | 21       | 11110xxx | 10xxxxxx | 10xxxxxx | 10xxxxxx |
+这种编码的好处是，码点U+000至U+007F编码为一个字节，与ASCII兼容
+
+例如，欧元符号€ -> U+20AC
+
+1. U+20AC 在 U+0800 ~ U+FFFF 的范围内，应编码成 3 个字节。
+2. U+20AC 的二进位为 10000010101100
+3. 3 个字节的情况我们要 16 位的码点，所以在前面补两个 0，成为 0010000010101100
+4. 按上表把二进位分成 3 组：0010, 000010, 101100
+5. 加上每个字节的前缀：11100010, 10000010, 10101100
+6. 用十六进位表示即：0xE2, 0x82, 0xAC
+
+~~~c
+if (u >= 0x0800 && u <= 0xFFFF) {
+    OutputByte(0xE0 | ((u >> 12) & 0xFF)); /* 0xE0 = 11100000 */
+    OutputByte(0x80 | ((u >>  6) & 0x3F)); /* 0x80 = 10000000 */
+    OutputByte(0x80 | ( u        & 0x3F)); /* 0x3F = 00111111 */
+}
+~~~
+
+#### 最终解析过程如下：
+
+遇到\u转义，调用parse_hex4()解析4位16进制数字，存储为码点u, 成功后返回解析后的文本指针，失败返回NULL,如果失败，就安徽PARSE_INVALID_UNICODE_HEX

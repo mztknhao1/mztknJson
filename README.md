@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2021-03-30 16:13:34
- * @LastEditTime: 2021-03-30 17:35:05
+ * @LastEditTime: 2021-04-01 10:57:22
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/README.md
@@ -11,6 +11,14 @@
 简单来说，输入字符串 --> 解析到特定结构体中 --> 从结构体(DOM)获取值    ；  另一个功能：能够从结构体中恢复成一个Json字符串 (stringnify)
 
 注：[关于命名风格统一](##命名风格统一)
+
+## 优势与待优化
+
+* 兼容UTF-8编码
+
+* 使用简单
+
+* 
 
 ## 解析器
 
@@ -74,3 +82,6 @@ ValueType getType(Value* v);
 5. 全局变量用g开头
 6. 成员函数使用小写开头，
 
+## 参考
+
+* [json_tutorial](https://github.com/miloyip/json-tutorial)

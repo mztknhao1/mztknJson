@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 18:57:45
- * @LastEditTime: 2021-04-01 10:04:35
+ * @LastEditTime: 2021-04-01 11:28:40
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/test.c
@@ -172,8 +172,13 @@ static void test_parse_number_too_big() {
 }
 
 static void test_parse_string(){
-    // TEST_STRING("", "\"\"");
+    TEST_STRING("", "\"\"");
     TEST_STRING("Hello", "\"Hello\"");
+    TEST_STRING("\x24", "\"\\u0024\"");         /* Dollar sign U+0024 */
+    TEST_STRING("\xC2\xA2", "\"\\u00A2\"");     /* Cents sign U+00A2 */
+    TEST_STRING("\xE2\x82\xAC", "\"\\u20AC\""); /* Euro sign U+20AC */
+    TEST_STRING("\xF0\x9D\x84\x9E", "\"\\uD834\\uDD1E\"");  /* G clef sign U+1D11E */
+    TEST_STRING("\xF0\x9D\x84\x9E", "\"\\ud834\\udd1e\"");  /* G clef sign U+1D11E */
 }
 
 static void test_parse_invalid_value() {

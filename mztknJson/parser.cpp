@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:47:25
- * @LastEditTime: 2021-04-01 09:56:17
+ * @LastEditTime: 2021-04-01 11:37:05
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.cpp
@@ -96,12 +96,45 @@ int Parser::parse_number(Context& c, Value* v){
     return PARSE_OK;
 }
 
-
-
 ValueType Parser::get_type(const Value* v){
     assert(v!=NULL);
     return v->get_type();
 }
+
+const char *Parser::parse_hex4(const char* p, unsigned& u){
+    int i;
+    u = 0;
+    for(i = 0; i < 4; i++){
+        char ch = *p++;
+        u <<= 4;
+        if     (ch >= '0' && ch <= '9') u |= ch - '0';
+        else if(ch >= 'A' && ch <= 'F') u |= ch - ('A' - 10);
+        else if(ch >= 'a' && ch <= 'f') u |= ch - ('a' - 10);    
+    }
+    return p;
+}
+
+void Parser::encode_utf8(Context& c, unsigned u){
+    if (u <= 0x7F) 
+        c.put_char(u & 0xFF);
+    else if (u <= 0x7FF) {
+        c.put_char(0xC0 | ((u >> 6) & 0xFF));
+        c.put_char(0x80 | ( u       & 0x3F));
+    }
+    else if (u <= 0xFFFF) {
+        c.put_char(0xE0 | ((u >> 12) & 0xFF));
+        c.put_char(0x80 | ((u >>  6) & 0x3F));
+        c.put_char(0x80 | ( u        & 0x3F));
+    }
+    else {
+        assert(u <= 0x10FFFF);
+        c.put_char(0xF0 | ((u >> 18) & 0xFF));
+        c.put_char(0x80 | ((u >> 12) & 0x3F));
+        c.put_char(0x80 | ((u >>  6) & 0x3F));
+        c.put_char(0x80 | ( u        & 0x3F));
+    }
+}
+
 
 double Parser::get_number(const Value* v){
     assert(v!=NULL && v->get_type() == JSON_NUMBER);
@@ -122,10 +155,14 @@ int  Parser::parse_literal(Context& c, Value* v, const char* literal, ValueType 
     return PARSE_OK;
 }
 
+
+#define STRING_ERROR(ret) do { c._top = head; return ret; } while(0)
+
 int Parser::parse_string(Context& c, Value* v){
     assert(v!=NULL);
     size_t head = c._top, len;
     const char* p;
+    unsigned u,u2;
     EXPECT(c, '\"');
     p = c._json;
     for(;;){
@@ -146,17 +183,33 @@ int Parser::parse_string(Context& c, Value* v){
                     case 'n' : c.put_char('\n'); break;
                     case 'r' : c.put_char('\r'); break;
                     case 't' : c.put_char('\t'); break;
+                    case 'u' : 
+                        if(!(p = parse_hex4(p, u))){
+                            STRING_ERROR(PARSE_INVALID_UNICODE_HEX);
+                        }
+                        if (u >= 0xD800 && u <= 0xDBFF) { /* surrogate pair */
+                            if (*p++ != '\\')
+                                STRING_ERROR(PARSE_INVALID_UNICODE_SURROGATE);
+                            if (*p++ != 'u')
+                                STRING_ERROR(PARSE_INVALID_UNICODE_SURROGATE);
+                            if (!(p = parse_hex4(p, u2)))
+                                STRING_ERROR(PARSE_INVALID_UNICODE_HEX);
+                            if (u2 < 0xDC00 || u2 > 0xDFFF)
+                                STRING_ERROR(PARSE_INVALID_UNICODE_SURROGATE);
+                            u = (((u - 0xD800) << 10) | (u2 - 0xDC00)) + 0x10000;
+                        }
+                        encode_utf8(c, u);
+                        break;
                     default:
                         c._top = head;
                         return PARSE_INVALID_STRING_ESCAPE;
                 }
+                break;
             case '\0':
-                c._top = head;
-                return PARSE_MISS_QUOTATION_MARK;
+                STRING_ERROR(PARSE_MISS_QUOTATION_MARK);
             default:
                 if((unsigned char)ch < 0x20){
-                    c._top = head;
-                    return PARSE_INVALID_STRING_CHAR;
+                    STRING_ERROR(PARSE_INVALID_STRING_CHAR);
                 }
                 c.put_char(ch);
         }

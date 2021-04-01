@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:19:33
- * @LastEditTime: 2021-04-01 10:09:09
+ * @LastEditTime: 2021-04-01 11:29:09
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.hpp
@@ -23,7 +23,9 @@ typedef enum {
     PARSE_NUMBER_TOO_BIG,
     PARSE_MISS_QUOTATION_MARK,
     PARSE_INVALID_STRING_ESCAPE,
-    PARSE_INVALID_STRING_CHAR
+    PARSE_INVALID_STRING_CHAR,
+    PARSE_INVALID_UNICODE_HEX,
+    PARSE_INVALID_UNICODE_SURROGATE
 } ParseState;
 
 class Value{
@@ -154,6 +156,8 @@ private:
     int  parse_value(Context& c, Value* v);
     int  parse_number(Context& c, Value* v);
     int  parse_string(Context& c, Value* v);
+    const char* parse_hex4(const char* p, unsigned& u);
+    void encode_utf8(Context& c, unsigned u);
     int  parse_literal(Context& c, Value* v, const char* literal, ValueType type);
 
 
