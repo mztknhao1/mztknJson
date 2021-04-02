@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2021-03-30 17:34:46
- * @LastEditTime: 2021-04-01 11:06:09
+ * @LastEditTime: 2021-04-02 10:45:21
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/doc/Parser.md
@@ -231,3 +231,49 @@ if (u >= 0x0800 && u <= 0xFFFF) {
 #### 最终解析过程如下：
 
 遇到\u转义，调用parse_hex4()解析4位16进制数字，存储为码点u, 成功后返回解析后的文本指针，失败返回NULL,如果失败，就安徽PARSE_INVALID_UNICODE_HEX
+
+### 解析数组
+
+一个JSON数组可以包含零个至多个元素，这些元素可以是数组类型，也就是可以nested嵌套的。
+
+`array = %x5B ws [value *(ws %x2C ws value) ] ws %x5D`
+
+当中`%x5B是左括号[`, `%x2C 是 逗号`， `%x5D是右中括号`， ws是空白字符，一个数组可以包含零个至多个值，以逗号分隔
+`[], [1,,2,true], [[1,2], [3,4], "abc"]`都是合法数组，JSON不接受末端额外的逗号
+
+#### 设置数组结构，保存JSON数组类型
+
+JSON数组存储零至多个元素，可以使用数组或者链表存储，数组最大的好处是以O(1)的复杂度访问任意元素；次要好处是内存紧凑，省内存的同时还有高缓存一致性。但是不能快速插入元素。这里采用数组
+
+```c++
+
+    union{
+        struct {Value* e; size_t size;}_a;
+        double    _n;
+        struct {char* s; size_t len;} _s;
+    };
+
+```
+
+其中 size是元素的个数，而不是字节的大小
+
+#### 一个bug记录
+
+```c++
+Value e; 
+
+//...
+
+else if(*c._json == ']'){
+    c._json++;
+    v->_type = JSON_ARRAY;
+    v->_a.size = size;
+    size *= sizeof(Value);
+    memcpy(v->_a.e = (Value*)malloc(size), c.Pop(size), size);          //由于这里不是深拷贝，只拷贝了指针
+    return PARSE_OK;                                                    //Value e;结束后会调用析构函数
+}else{
+    ret = PARSE_MISS_COMMA_ORSQUARE_BRACKET;
+}
+```
+
+e不是深拷贝，只拷贝了指针，Value e的生命周期结束后会调用析构函数内的Free()函数，导致字符串等需要分配内存的元素被析构，也就是v也失去了这块内容。为了将栈中的内容拷贝到v中，可以采用：①深拷贝，这里涉及到多次申请和释放内存②直接浅拷贝，然后在最后释放所有申请的内存. 我们采取后一种方式，所以需要记得每次退出前需要调用Free(); 还有一种解决方法；利用RAII,构造一个Value RAII类,由该类负责调用Free()函数，但是同样需要额外的操作，这里简单期起见采用第二种方法。

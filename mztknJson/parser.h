@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:19:33
- * @LastEditTime: 2021-04-01 11:29:09
+ * @LastEditTime: 2021-04-02 11:01:18
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.hpp
@@ -25,33 +25,97 @@ typedef enum {
     PARSE_INVALID_STRING_ESCAPE,
     PARSE_INVALID_STRING_CHAR,
     PARSE_INVALID_UNICODE_HEX,
-    PARSE_INVALID_UNICODE_SURROGATE
+    PARSE_INVALID_UNICODE_SURROGATE,
+    PARSE_MISS_COMMA_ORSQUARE_BRACKET
 } ParseState;
 
 class Value{
 public:
-    union{
-        double    _n;
-        struct {char* s; size_t len;} _s;
-    };
+    friend class Parser;
+
     Value(){_type = JSON_NULL;}
     ~Value(){
-        Free();
+        // Free();
     }
+
+#if 0
+	Value(Value&& v) {
+		if (v._type == JSON_STRING) {
+			_type = JSON_STRING;
+			_s.s = v._s.s;
+			_s.len = v._s.len;
+			v._s.s = NULL;
+			v._type = JSON_NULL;
+		}
+		else if (v._type == JSON_ARRAY) {
+			for (size_t i = 0; i<v._a.size; i++) {
+				Value* p = new Value(std::move(v._a.e[i]));
+				(_a.e + i) = p;
+                v._a.e[i]._type = JSON_NULL;
+			}
+			_a.size = v._a.size;
+			v._type = JSON_NULL;
+		}else if(v._type==JSON_NUMBER){
+            _n = v._n;
+            _type = JSON_NUMBER;
+        }else if(v._type==JSON_FALSE || v._type==JSON_TRUE){
+            _type = v._type;
+        }
+	}
+
+	Value& operator=(Value&& v) {
+		if (v._type == JSON_STRING) {
+			this->_type = JSON_STRING;
+			_s.s = v._s.s;
+			_s.len = v._s.len;
+			v._s.s = NULL;
+			v._type = JSON_NULL;
+		}
+		else if (v._type == JSON_ARRAY) {
+			for (int i = 0; i<v._a.size; i++) {
+				Value* p = new Value(std::move(v._a.e[i]));
+				(_a.e + i) = p;
+                v._a.e[i]._type = JSON_NULL;
+			}
+			_a.size = v._a.size;
+			v._type = JSON_NULL;
+		}else if(v._type==JSON_NUMBER){
+            _n = v._n;
+            _type = JSON_NUMBER;
+        }else if(v._type==JSON_FALSE || v._type==JSON_TRUE){
+            _type = v._type;
+        }
+		return *this;
+	}
+#endif
+
     void set_null(){
         _type = JSON_NULL;
     }
     ValueType get_type() const {
         return _type;
     }
-    ValueType set_type(ValueType vt){
+    void set_type(ValueType vt){
         _type = vt;
     }
     void Free(){
-        if(_type == JSON_STRING)
-            free(_s.s);
+        switch(_type){
+            case JSON_STRING:
+                free(_s.s);
+                _s.s = NULL;
+                break;
+            case JSON_ARRAY:
+                for(size_t i = 0;i < _a.size; i++){
+                    _a.e[i].Free();
+                }
+                free(_a.e);
+                break;
+            default: break;
+        }
         _type = JSON_NULL;
+        _a.e = NULL;
     }
+    
     int get_boolean(){
         assert(_type == JSON_TRUE || _type==JSON_FALSE);
         if(_type == JSON_TRUE){
@@ -65,24 +129,38 @@ public:
         Free();
         _type = b?JSON_TRUE:JSON_FALSE;
     }
-    double get_number(){
+    double get_number() const {
         assert(_type == JSON_NUMBER);
-        return _n;
+        double n = _n;
+        return n;
     }
     void set_number(double n){
         Free();
         _n = n;
         _type = JSON_NUMBER;
     }
-    
     const char* get_string(){
         assert(_type == JSON_STRING);
         return _s.s;
     }
-    size_t              get_string_length(){
+    size_t get_string_length() const{
         assert(_type == JSON_STRING);
-        return _s.len;
+        size_t len = _s.len;
+        return len;
     }
+
+    size_t get_array_size() const {
+        assert(_type == JSON_ARRAY);
+        size_t sz = _a.size;
+        return sz;
+    }
+
+    Value* get_array_element(size_t index){
+        assert(_type == JSON_ARRAY);
+        assert(index < _a.size);
+        return &_a.e[index];
+    }
+
     void set_string(const char* s, size_t len){
         assert(s!=NULL || len==0);
         Free();
@@ -95,7 +173,11 @@ public:
 
 private:
     ValueType _type;
-
+    union{
+        struct {Value* e; size_t size;}_a;
+        double    _n;
+        struct {char* s; size_t len;} _s;
+    };
 
 };
 
@@ -103,7 +185,6 @@ private:
 class Parser{
 public:
     int parse(Value* v, const char* json);
-
 
     ValueType get_type(const Value* v);
 
@@ -159,7 +240,7 @@ private:
     const char* parse_hex4(const char* p, unsigned& u);
     void encode_utf8(Context& c, unsigned u);
     int  parse_literal(Context& c, Value* v, const char* literal, ValueType type);
-
+    int  parse_array(Context& c, Value* v);
 
     
 };

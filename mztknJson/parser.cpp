@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:47:25
- * @LastEditTime: 2021-04-01 11:37:05
+ * @LastEditTime: 2021-04-02 10:56:36
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.cpp
@@ -49,19 +49,16 @@ int Parser::parse_value(Context& c, Value* v){
     switch(*c._json){
         case 'n':
             return parse_literal(c, v, "null", JSON_NULL);
-            break;
         case 't':
             return parse_literal(c, v, "true", JSON_TRUE);
-            break;
         case 'f':
             return parse_literal(c, v, "false", JSON_FALSE);
-            break;
         case '\0':
             return PARSE_EXPECT_VALUE;
-            break;
         case '"':
             return parse_string(c, v);
-            break;
+        case '[':
+            return parse_array(c, v);
         default:
             return parse_number(c, v);
     }
@@ -87,10 +84,11 @@ int Parser::parse_number(Context& c, Value* v){
         for(p++; ISDIGIT(*p); p++);
     }
     errno = 0;
-    v->_n = strtod(c._json, NULL);
-    if(errno == ERANGE && (v->_n == HUGE_VAL || v->_n == -HUGE_VAL)){
+    double n = strtod(c._json, NULL);
+    if(errno == ERANGE && (n == HUGE_VAL || n == -HUGE_VAL)){
         return PARSE_NUMBER_TOO_BIG;
     }
+    v->_n = n;
     c._json = p;
     v->set_type(JSON_NUMBER);
     return PARSE_OK;
@@ -138,7 +136,7 @@ void Parser::encode_utf8(Context& c, unsigned u){
 
 double Parser::get_number(const Value* v){
     assert(v!=NULL && v->get_type() == JSON_NUMBER);
-    return v->_n;
+    return v->get_number();
 }
 
 /*解析字面量*/
@@ -216,5 +214,48 @@ int Parser::parse_string(Context& c, Value* v){
     }
 }
 
+
+int Parser::parse_array(Context& c, Value* v){
+    size_t size = 0;
+    int ret;
+    EXPECT(c, '[');
+    parse_whitespace(c);
+    if(*c._json==']'){
+        c._json++;
+        v->set_type(JSON_ARRAY);
+        v->_a.size = 0;
+        v->_a.e = NULL;
+        return PARSE_OK;
+    }
+    for(;;){
+        Value e;
+        if((ret = parse_value(c, &e)) != PARSE_OK){
+            break;
+        }
+        memcpy(c.Push(sizeof(Value)), &e, sizeof(Value));
+        size++;
+        parse_whitespace(c);
+        if(*c._json == ','){
+            c._json++;
+            parse_whitespace(c);
+        }
+        else if(*c._json == ']'){
+            c._json++;
+            v->_type = JSON_ARRAY;
+            v->_a.size = size;
+            size *= sizeof(Value);
+            Value* tmp = (Value*)c.Pop(size);
+            memcpy(v->_a.e = (Value*)malloc(size), (void*)tmp, size);
+            return PARSE_OK;
+        }else{
+            ret = PARSE_MISS_COMMA_ORSQUARE_BRACKET;
+        }
+    }
+    for(size_t i = 0;i < size;i++){
+        Value* tmpV = (Value*)c.Pop(sizeof(Value));
+        tmpV->Free();
+    }
+    return ret;
+}
 
 MZTKNJSON_NAMESPACE_END

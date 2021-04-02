@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 18:57:45
- * @LastEditTime: 2021-04-01 11:28:40
+ * @LastEditTime: 2021-04-02 11:03:12
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/test.c
@@ -30,6 +30,7 @@ using namespace mztknJson;
 
 #define EXPECT_EQ_INT(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%d")
 #define EXPECT_EQ_DOUBLE(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%.17g")
+#define EXPECT_EQ_SIZE_T(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)expect, (size_t)actual, "%zu")
 
 #define TEST_NULL(expect, json) \
         do{\
@@ -71,6 +72,7 @@ using namespace mztknJson;
             EXPECT_EQ_INT(PARSE_OK, p.parse(&v, json));\
             EXPECT_EQ_INT(JSON_STRING, p.get_type(&v)); \
             EXPECT_EQ_STRING(expect, v.get_string(), v.get_string_length());\
+            v.Free();\
         }while(0);
 
 #define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual)!=0, "true", "false", "%s")
@@ -78,6 +80,45 @@ using namespace mztknJson;
 
 static void test_parse_null(){
     TEST_NULL(PARSE_OK, "null");
+}
+
+static void test_parse_array() {
+    size_t i, j;
+    Value v;
+    Parser p;
+
+    EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "[ ]"));
+    EXPECT_EQ_INT(JSON_ARRAY, v.get_type());
+    EXPECT_EQ_SIZE_T(0, v.get_array_size());
+    
+    v.Free();
+    EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "[ null , false , true , 123 , \"abc\" ]"));
+    EXPECT_EQ_INT(JSON_ARRAY, v.get_type());
+    EXPECT_EQ_SIZE_T(5, v.get_array_size());
+    EXPECT_EQ_INT(JSON_NULL,   (*v.get_array_element(0)).get_type());
+    EXPECT_EQ_INT(JSON_FALSE,  (*v.get_array_element(1)).get_type());
+    EXPECT_EQ_INT(JSON_TRUE,   (*v.get_array_element(2)).get_type());
+    EXPECT_EQ_INT(JSON_NUMBER, (*v.get_array_element(3)).get_type());
+    EXPECT_EQ_INT(JSON_STRING, (*v.get_array_element(4)).get_type());
+    EXPECT_EQ_DOUBLE(123.0,    (*v.get_array_element(3)).get_number());
+    EXPECT_EQ_STRING("abc",    (*v.get_array_element(4)).get_string(), (*v.get_array_element(4)).get_string_length());
+    
+
+    v.Free();
+    EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]"));
+    EXPECT_EQ_INT(JSON_ARRAY, v.get_type());
+    EXPECT_EQ_SIZE_T(4, v.get_array_size());
+    for (i = 0; i < 4; i++) {
+        Value* a = v.get_array_element(i);
+        EXPECT_EQ_INT(JSON_ARRAY, a->get_type());
+        EXPECT_EQ_SIZE_T(i, a->get_array_size());
+        for (j = 0; j < i; j++) {
+            Value* e = a->get_array_element(j);
+            EXPECT_EQ_INT(JSON_NUMBER, e->get_type());
+            EXPECT_EQ_DOUBLE((double)j, e->get_number());
+        }
+    }
+    v.Free();
 }
 
 static void test_access_boolean(){
@@ -94,14 +135,16 @@ static void test_access_boolean(){
     v1.set_type(JSON_TRUE);
     p.parse(&v, "false");
     EXPECT_FALSE(v.get_boolean());
+    v.Free();
+    v1.Free();
 }
 
 static void test_access_number(){
-    Parser p;
     Value v;
     v.set_string("a", 1);
     v.set_number(1234.5);
     EXPECT_EQ_DOUBLE(1234.5, v.get_number());
+    v.Free();
 }
 
 static void test_parse_true(){
@@ -110,6 +153,7 @@ static void test_parse_true(){
     v.set_type(JSON_FALSE);
     EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "true"));
     EXPECT_EQ_INT(JSON_TRUE, p.get_type(&v));
+    v.Free();
 }
 
 static void test_parse_false(){
@@ -118,6 +162,7 @@ static void test_parse_false(){
     v.set_type(JSON_FALSE);
     EXPECT_EQ_INT(PARSE_OK, p.parse(&v, "false"));
     EXPECT_EQ_INT(JSON_FALSE, p.get_type(&v));
+    v.Free();
 }
 
 static void test_parse_expect_value() {
@@ -225,6 +270,7 @@ static void test_parse(){
     test_parse_invalid_value();
     test_parse_root_not_singular();
     test_parse_string();
+    test_parse_array();
 
     test_access_number();
     test_access_boolean();
