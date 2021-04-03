@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-04-02 20:35:07
- * @LastEditTime: 2021-04-03 08:46:59
+ * @LastEditTime: 2021-04-03 09:47:16
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/value.cpp
@@ -35,6 +35,13 @@ void Value::Free(){
                 _a.e[i].Free();
             }
             free(_a.e);
+            break;
+        case JSON_OBJECT:
+            for(size_t i = 0;i < _o.size;i++){
+                free(_o.m[i].k);        //释放Key
+                _o.m[i].v.Free();
+            }
+            free(_o.m);
             break;
         default: break;
     }
