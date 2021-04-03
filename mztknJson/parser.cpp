@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:47:25
- * @LastEditTime: 2021-04-02 10:56:36
+ * @LastEditTime: 2021-04-03 08:33:16
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/parser.cpp
@@ -9,9 +9,12 @@
 #include <errno.h>
 #include <math.h>
 #include <malloc.h>
+#include "mztknJson.h"
 #include "parser.h"
+#include "value.h"
 
 MZTKNJSON_NAMESPACE_BEGIN
+
 
 #define EXPECT(c, ch)   do {assert(*c._json == (ch)); c._json++;} while(0)
 #define ISDIGIT(ch)     ((ch) >= '0' && (ch) <= '9')
@@ -59,6 +62,8 @@ int Parser::parse_value(Context& c, Value* v){
             return parse_string(c, v);
         case '[':
             return parse_array(c, v);
+        case '{':
+            return parse_object(c, v);
         default:
             return parse_number(c, v);
     }
@@ -156,9 +161,8 @@ int  Parser::parse_literal(Context& c, Value* v, const char* literal, ValueType 
 
 #define STRING_ERROR(ret) do { c._top = head; return ret; } while(0)
 
-int Parser::parse_string(Context& c, Value* v){
-    assert(v!=NULL);
-    size_t head = c._top, len;
+int  Parser::parse_string_raw(Context& c, char** str, size_t* len){
+    size_t head = c._top;
     const char* p;
     unsigned u,u2;
     EXPECT(c, '\"');
@@ -167,8 +171,8 @@ int Parser::parse_string(Context& c, Value* v){
         char ch = *p++;
         switch(ch){
             case '\"':
-                len = c._top - head;
-                v->set_string((const char*)c.Pop(len), len);
+                *len = c._top - head;
+                *str = (char*)c.Pop(*len);
                 c._json = p;
                 return PARSE_OK;
             case '\\':
@@ -214,6 +218,16 @@ int Parser::parse_string(Context& c, Value* v){
     }
 }
 
+int Parser::parse_string(Context& c, Value* v){
+    int ret;
+    char* s;
+    size_t len;
+    if((ret = parse_string_raw(c, &s, &len)) == PARSE_OK){
+        v->set_string(s, len);
+    }
+    return ret;
+}
+
 
 int Parser::parse_array(Context& c, Value* v){
     size_t size = 0;
@@ -255,6 +269,74 @@ int Parser::parse_array(Context& c, Value* v){
         Value* tmpV = (Value*)c.Pop(sizeof(Value));
         tmpV->Free();
     }
+    return ret;
+}
+
+
+int Parser::parse_object(Context& c, Value* v){
+    size_t size = 0;
+    int ret;
+    EXPECT(c, '{');
+    member m;
+    parse_whitespace(c);
+    if(*c._json=='}'){
+        c._json++;
+        v->_type = JSON_OBJECT;
+        v->_o.m = 0;
+        v->_o.size = 0;
+        return PARSE_OK;
+    }
+    size = 0;
+    for(;;){
+        char *str;
+        //parse key
+        if(*c._json != '"'){
+            ret = PARSE_MISS_KEY;
+            break;
+        }
+        if((ret = parse_string_raw(c, &str, &m.klen))!=PARSE_OK)
+            break;
+        memcpy(m.k = (char*)malloc(m.klen + 1), str, m.klen);
+        m.k[m.klen] = '\0';
+        //parse ws colon ws
+        parse_whitespace(c);
+        if(*c._json != ':'){
+            ret = PARSE_MISS_COLON;
+            break;
+        }
+        c._json++;
+        parse_whitespace(c);
+        //parse value
+        if((ret = parse_value(c, &m.v)) != PARSE_OK)
+            break;
+        memcpy(c.Push(sizeof(member)), &m, sizeof(member));
+        size++;
+        m.k = NULL;     //所属权已经转移到stack了
+        //parse ws [comma | right-curly-brace] ws 
+        parse_whitespace(c);
+        if(*c._json == ','){
+            c._json++;
+            parse_whitespace(c);
+        }else if(*c._json == '}'){
+            size_t s = sizeof(member) * size;
+            c._json++;
+            v->_type = JSON_OBJECT;
+            v->_o.size = size;
+            memcpy(v->_o.m = (member*)malloc(s), c.Pop(s), s);
+            return PARSE_OK;
+        }else{
+            ret = PARSE_MISS_COMMA_OR_CURLY_BRACKET;
+            break;
+        }
+    }
+    
+    free(m.k);
+    for(size_t i = 0;i < size;i++){
+        member* m = (member*)c.Pop(sizeof(member));
+        free(m->k);
+        m->v.Free();
+    }
+    v->_type = JSON_NULL;
     return ret;
 }
 

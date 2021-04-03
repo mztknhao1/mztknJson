@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2021-03-30 16:13:34
- * @LastEditTime: 2021-04-01 10:57:22
+ * @LastEditTime: 2021-04-02 20:07:04
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/README.md
@@ -18,7 +18,9 @@
 
 * 使用简单
 
-* 
+### 优化
+
+* 可以改用使用unordered_multimap实现object对象的存储结构 
 
 ## 解析器
 

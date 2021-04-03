@@ -9,5 +9,4 @@ aux_source_directory(./mztknJson DIRSRCS)
 
 # add_subdirectory(mztknJson)
 
-add_executable(unitTest test.cpp ${DIRSRCS})
-# target_link_libraries(unitTest mztknJSON)
+add_executable(unitTest test.cpp ./mztknJson/value.h ./mztknJson/parser.h ./mztknJson/value.cpp ./mztknJson/parser.cpp)

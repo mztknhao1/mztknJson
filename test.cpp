@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 18:57:45
- * @LastEditTime: 2021-04-02 11:03:12
+ * @LastEditTime: 2021-04-03 09:28:27
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/test.c
@@ -9,8 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "./mztknJson/mztknJson.h"
-#include "./mztknJson/parser.h"
+#include "mztknJson.h"
+#include "parser.h"
 
 static int main_ret = 0;
 static int test_count = 0;
@@ -260,6 +260,65 @@ static void test_parse_missing_quotation_mark() {
     TEST_ERROR(PARSE_MISS_QUOTATION_MARK, "\"abc");
 }
 
+static void test_parse_object() {
+    Parser p;
+    Value v;
+    // size_t i;
+
+    EXPECT_EQ_INT(PARSE_OK, p.parse(&v, " { } "));
+    EXPECT_EQ_INT(JSON_OBJECT, v.get_type());
+    EXPECT_EQ_SIZE_T(0, v.get_object_size());
+    v.Free();
+    
+    EXPECT_EQ_INT(PARSE_OK, p.parse(&v,
+        " { "
+        "\"n\" : null , "
+        "\"f\" : false , "
+        "\"t\" : true , "
+        "\"i\" : 123 , "
+        "\"s\" : \"abc\", "
+        "\"a\" : [ 1, 2, 3 ],"
+        "\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
+        " } "
+    ));
+    EXPECT_EQ_INT(JSON_OBJECT, v.get_type());
+    EXPECT_EQ_SIZE_T(7, v.get_object_size());
+    EXPECT_EQ_STRING("n", v.get_object_key(0), v.get_object_key_length(0));
+    EXPECT_EQ_INT(JSON_NULL,   v.get_object_value(0)->get_type());
+    EXPECT_EQ_STRING("f", v.get_object_key(1), v.get_object_key_length(1));
+    EXPECT_EQ_INT(JSON_FALSE,  v.get_object_value(1)->get_type());
+    EXPECT_EQ_STRING("t", v.get_object_key(2), v.get_object_key_length(2));
+    EXPECT_EQ_INT(JSON_TRUE,   v.get_object_value(2)->get_type());
+    EXPECT_EQ_STRING("i", v.get_object_key(3), v.get_object_key_length(3));
+    EXPECT_EQ_INT(JSON_NUMBER, v.get_object_value(3)->get_type());
+    EXPECT_EQ_DOUBLE(123.0, v.get_object_value(3)->get_number());
+    EXPECT_EQ_STRING("s", v.get_object_key(4), v.get_object_key_length(4));
+    EXPECT_EQ_INT(JSON_STRING, v.get_object_value(4)->get_type());
+    EXPECT_EQ_STRING("abc", v.get_object_value(4)->get_string(), v.get_object_value(4)->get_string_length());
+    EXPECT_EQ_STRING("a", v.get_object_key(5), v.get_object_key_length(5));
+    EXPECT_EQ_INT(JSON_ARRAY, v.get_object_value(5)->get_type());
+    EXPECT_EQ_SIZE_T(3, v.get_object_value(5)->get_object_size());
+    for (size_t i = 0; i < 3; i++) {
+        Value* e = v.get_object_value(5)->get_array_element(i);
+        EXPECT_EQ_INT(JSON_NUMBER, e->get_type());
+        EXPECT_EQ_DOUBLE(i + 1.0, e->get_number());
+    }
+    EXPECT_EQ_STRING("o", v.get_object_key(6), v.get_object_key_length(6));
+    {
+        Value* o = v.get_object_value(6);
+        EXPECT_EQ_INT(JSON_OBJECT, o->get_type());
+        for (size_t i = 0; i < 3; i++) {
+            Value* ov = o->get_object_value(i);
+            EXPECT_TRUE('1' + i == o->get_object_key(i)[0]);
+            EXPECT_EQ_SIZE_T(1, o->get_object_key_length(i));
+            EXPECT_EQ_INT(JSON_NUMBER, ov->get_type());
+            EXPECT_EQ_DOUBLE(i + 1.0, ov->get_number());
+        }
+    }
+    v.Free();
+}
+
+
 static void test_parse(){
     test_parse_null();
     test_parse_true();
@@ -271,6 +330,7 @@ static void test_parse(){
     test_parse_root_not_singular();
     test_parse_string();
     test_parse_array();
+    test_parse_object();
 
     test_access_number();
     test_access_boolean();

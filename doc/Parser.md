@@ -1,7 +1,7 @@
 <!--
  * @Author: your name
  * @Date: 2021-03-30 17:34:46
- * @LastEditTime: 2021-04-02 10:45:21
+ * @LastEditTime: 2021-04-02 20:09:36
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/doc/Parser.md
@@ -277,3 +277,61 @@ else if(*c._json == ']'){
 ```
 
 e不是深拷贝，只拷贝了指针，Value e的生命周期结束后会调用析构函数内的Free()函数，导致字符串等需要分配内存的元素被析构，也就是v也失去了这块内容。为了将栈中的内容拷贝到v中，可以采用：①深拷贝，这里涉及到多次申请和释放内存②直接浅拷贝，然后在最后释放所有申请的内存. 我们采取后一种方式，所以需要记得每次退出前需要调用Free(); 还有一种解决方法；利用RAII,构造一个Value RAII类,由该类负责调用Free()函数，但是同样需要额外的操作，这里简单期起见采用第二种方法。
+
+### 解析对象
+
+JSON对象和数组非常相似，区别包括JSON对象以花括号包裹表示，且JSON对象由对象成员组成，JSON数组由JSON值表示。对象成员就是键值对，键为JSON字符串，然后值是任何JSON值，中间以冒号分隔：
+
+```
+member = string ws %x3A ws value
+object = %x7B ws [member *(ws %2C ws member) ] ws %x7D
+```
+
+#### 数据结构
+
+要表示键值对可以由很多数据结构可以选择：
+
+* 动态数组
+
+* 有序动态数组（和动态数组相同，但保证元素已经排序）
+
+* 平衡树：例如红黑树
+
+* 哈希表
+
+|               |动态数组 |有序动态数组|平衡树    |哈希表                |
+|---------------|:-------:|:----------:|:--------:|:--------------------:|
+|有序           |否       |是          |是        |否                    |
+|自定成员次序   |可       |否          |否        |否                    |
+|初始化 n 个成员|O(n)     |O(n log n)  |O(n log n)|平均 O(n)、最坏 O(n^2)|
+|加入成员       |分摊 O(1)|O(n)        |O(log n)  |平均 O(1)、最坏 O(n)  |
+|移除成员       |O(n)     |O(n)        |O(log n)  |平均 O(1)、最坏 O(n)  |
+|查询成员       |O(n)     |O(log n)    |O(log n)  |平均 O(1)、最坏 O(n)  |
+|遍历成员       |O(n)     |O(n)        |O(n)      |O(m)                  |
+|检测对象相等   |O(n^2)   |O(n)        |O(n)      |平均 O(n)、最坏 O(n^2)|
+|空间           |O(m)     |O(m)        |O(n)      |O(m)                  |
+
+各个复杂度如上表。
+
+为了简单起见，使用动态数组数据结构
+
+```c++
+
+struct member{
+    char* c;
+    size_t sz;
+    Value v;
+}
+
+Value(){
+    //...
+    union{
+        struct {member* m, size_t size}_o;
+        struct{Value* e, size_t size;}_a;
+        struct{char* s, size_t len}s;
+        double _n;        
+    }
+    ValueType _type;
+}
+
+```
