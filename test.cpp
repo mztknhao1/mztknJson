@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 18:57:45
- * @LastEditTime: 2021-04-03 09:44:48
+ * @LastEditTime: 2021-04-06 18:58:37
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/test.c
@@ -11,6 +11,7 @@
 #include <string.h>
 #include "mztknJson.h"
 #include "parser.h"
+#include "generator.h"
 
 static int main_ret = 0;
 static int test_count = 0;
@@ -77,6 +78,20 @@ using namespace mztknJson;
 
 #define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual)!=0, "true", "false", "%s")
 #define EXPECT_FALSE(actual) EXPECT_EQ_BASE((actual)==0, "false", "true", "%s")
+
+#define TEST_ROUNDTRIP(json) \
+    do{\
+        Value v;\
+        Parser p;\
+        char* json2;\
+        size_t length;\
+        EXPECT_EQ_INT(PARSE_OK, p.parse(&v, json));\
+        json2 = Generator::stringify(&v, &length);\
+        EXPECT_EQ_STRING(json, json2, length);\
+        v.Free();\
+        free(json2);\
+    }while(0)
+
 
 static void test_parse_null(){
     TEST_NULL(PARSE_OK, "null");
@@ -318,6 +333,56 @@ static void test_parse_object() {
     v.Free();
 }
 
+static void test_stringify_number() {
+    TEST_ROUNDTRIP("0");
+    TEST_ROUNDTRIP("-0");
+    TEST_ROUNDTRIP("1");
+    TEST_ROUNDTRIP("-1");
+    TEST_ROUNDTRIP("1.5");
+    TEST_ROUNDTRIP("-1.5");
+    TEST_ROUNDTRIP("3.25");
+    TEST_ROUNDTRIP("1e+20");
+    TEST_ROUNDTRIP("1.234e+20");
+    TEST_ROUNDTRIP("1.234e-20");
+
+    TEST_ROUNDTRIP("1.0000000000000002"); /* the smallest number > 1 */
+    TEST_ROUNDTRIP("4.9406564584124654e-324"); /* minimum denormal */
+    TEST_ROUNDTRIP("-4.9406564584124654e-324");
+    TEST_ROUNDTRIP("2.2250738585072009e-308");  /* Max subnormal double */
+    TEST_ROUNDTRIP("-2.2250738585072009e-308");
+    TEST_ROUNDTRIP("2.2250738585072014e-308");  /* Min normal positive double */
+    TEST_ROUNDTRIP("-2.2250738585072014e-308");
+    TEST_ROUNDTRIP("1.7976931348623157e+308");  /* Max double */
+    TEST_ROUNDTRIP("-1.7976931348623157e+308");
+}
+
+static void test_stringify_string() {
+    TEST_ROUNDTRIP("\"\"");
+    TEST_ROUNDTRIP("\"Hello\"");
+    TEST_ROUNDTRIP("\"Hello\\nWorld\"");
+    TEST_ROUNDTRIP("\"\\\" \\\\ / \\b \\f \\n \\r \\t\"");
+    TEST_ROUNDTRIP("\"Hello\\u0000World\"");
+}
+
+static void test_stringify_array() {
+    TEST_ROUNDTRIP("[]");
+    TEST_ROUNDTRIP("[null,false,true,123,\"abc\",[1,2,3]]");
+}
+
+static void test_stringify_object() {
+    TEST_ROUNDTRIP("{}");
+    TEST_ROUNDTRIP("{\"n\":null,\"f\":false,\"t\":true,\"i\":123,\"s\":\"abc\",\"a\":[1,2,3],\"o\":{\"1\":1,\"2\":2,\"3\":3}}");
+}
+
+static void test_stringify() {
+    TEST_ROUNDTRIP("null");
+    TEST_ROUNDTRIP("false");
+    TEST_ROUNDTRIP("true");
+    test_stringify_number();
+    test_stringify_string();
+    test_stringify_array();
+    test_stringify_object();
+}
 
 static void test_parse(){
     test_parse_null();
@@ -332,6 +397,7 @@ static void test_parse(){
     test_parse_array();
     test_parse_object();
 
+    test_stringify();
     test_access_number();
     test_access_boolean();
     test_parse_invalid_string_char();

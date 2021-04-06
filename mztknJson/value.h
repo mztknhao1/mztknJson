@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-04-02 20:34:49
- * @LastEditTime: 2021-04-03 08:46:48
+ * @LastEditTime: 2021-04-03 11:46:37
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/value.h
@@ -11,7 +11,7 @@
 
 #include "mztknJson.h"
 
-namespace mztknJson{
+MZTKNJSON_NAMESPACE_BEGIN
 
 class member;
 
@@ -33,14 +33,14 @@ public:
     void set_boolean(int b);
     double get_number() const;
     void set_number(double n);
-    const char* get_string();
+    const char* get_string() const;
     size_t get_string_length() const;
     size_t get_array_size() const;
-    Value* get_array_element(size_t index);
-    Value* get_object_value(size_t index);
-    const char* get_object_key(size_t index);
-    size_t get_object_key_length(size_t index);
-    size_t get_object_size();
+    Value* get_array_element(size_t index) const;
+    Value* get_object_value(size_t index) const;
+    const char* get_object_key(size_t index) const;
+    size_t get_object_key_length(size_t index) const;
+    size_t get_object_size() const;
     void set_string(const char* s, size_t len);
 
 private:
@@ -68,7 +68,7 @@ class member{
     Value v;
 };
 
-}
+MZTKNJSON_NAMESPACE_END
 
 
 #endif

@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-03-30 16:39:50
- * @LastEditTime: 2021-04-02 23:31:36
+ * @LastEditTime: 2021-04-03 10:09:17
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/mztknJson.h
@@ -27,6 +27,9 @@
 #define PARSE_STACK_INIT_SIZE 256
 #endif
 
+#ifndef PARSE_STRINGIFY_INIT_SIZE
+#define PARSE_STRINGIFY_INIT_SIZE 256
+#endif
 
 
 

@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2021-04-02 20:35:07
- * @LastEditTime: 2021-04-03 09:47:16
+ * @LastEditTime: 2021-04-06 17:19:05
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: /mztknJson/mztknJson/value.cpp
@@ -76,7 +76,7 @@ void Value::set_number(double n){
     _type = JSON_NUMBER;
 }
 
-const char* Value::get_string(){
+const char* Value::get_string() const{
     assert(_type == JSON_STRING);
     return _s.s;
 }
@@ -92,29 +92,29 @@ size_t Value::get_array_size() const {
     return sz;
 }
 
-Value* Value::get_array_element(size_t index){
+Value* Value::get_array_element(size_t index) const{
     assert(_type == JSON_ARRAY);
     assert(index < _a.size);
     return &_a.e[index];
 }
 
-Value* Value::get_object_value(size_t index){
+Value* Value::get_object_value(size_t index) const{
     assert(index < _o.size);
     return &_o.m[index].v;
 }
 
-const char* Value::get_object_key(size_t index){
+const char* Value::get_object_key(size_t index) const{
     assert(index < _o.size);
     return (const char*)_o.m[index].k;
 }
 
 // 保留长度的原因在于为了支持utf-8, 可能会存在\u0000的空字符，不能直接通过'\0'获得字符长度
-size_t Value::get_object_key_length(size_t index){
+size_t Value::get_object_key_length(size_t index) const{
     assert(index < _o.size);
     return _o.m[index].klen;
 }
 
-size_t Value::get_object_size(){
+size_t Value::get_object_size() const{
     return _o.size;
 }
 
